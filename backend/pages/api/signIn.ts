@@ -1,13 +1,21 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { connectDb } from "../../middlewares/connectDb";
 import { defaultResponseMsg } from "../../types/defaultResponseMsg";
+import { signInType } from "../../types/signInType";
 import md5 from "md5";
 import { userModel } from "../../models/userModel";
+import jwt from "jsonwebtoken";
 
 const endPointSignIn = async (
   req: NextApiRequest,
-  res: NextApiResponse<defaultResponseMsg>
+  res: NextApiResponse<defaultResponseMsg | signInType>
 ) => {
+  const { JWT_KEY } = process.env;
+
+  if (!JWT_KEY) {
+    return res.status(500).json({ error: "Chave jwt não informada" });
+  }
+
   if (req.method === "POST") {
     const { email, password } = req.body;
 
@@ -17,7 +25,13 @@ const endPointSignIn = async (
     });
 
     if (findUser.length > 0) {
-      return res.status(200).json({ msg: "Usuário logado" });
+      const userFinded = findUser[0];
+      const token = jwt.sign({ _id: userFinded._id }, JWT_KEY);
+      return res.status(200).json({
+        name: userFinded.name,
+        email: userFinded.email,
+        token,
+      });
     }
 
     return res.status(405).json({ error: "Usuário não encontrado" });
